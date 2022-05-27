@@ -2,7 +2,7 @@ name: NationsWRLD
 main: net.minenations.nationswrld.NationsWRLD
 version: 1.0
 api-version: 1.17
-depend: [WRLDPaymentsAPI]
+depend: [WRLDPaymentsAPI, LuckPerms]
 commands:
   wallet:
     description: Displays player's connected wallet
@@ -12,3 +12,7 @@ commands:
     description: Displays current $WRLD balance
   serverpaywrld:
     description: Server pays player's $WRLD
+  matic:
+    description: Matic command
+  claim:
+    description: Claim command

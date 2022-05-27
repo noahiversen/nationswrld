@@ -5,6 +5,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import com.nftworlds.wallet.objects.Network;
 import com.nftworlds.wallet.objects.Wallet;
@@ -29,7 +30,12 @@ public class PayWrldCommand implements CommandExecutor {
 							Wallet toWallet = NationsWRLD.getWalletAPI().getPrimaryWallet(targetPlayer);
 							if(toWallet != null) {
 								if(fromWallet.getPolygonWRLDBalance() >= amount) {
-									NationsWRLD.getWalletAPI().createPlayerPayment(player, targetPlayer, amount, Network.POLYGON, "Gift");
+									new BukkitRunnable() {
+										@Override
+										public void run() {
+		 									NationsWRLD.getWalletAPI().createPlayerPayment(player, targetPlayer, amount, Network.POLYGON, "Gift");
+										}
+									}.runTaskAsynchronously(NationsWRLD.getInstance());
 								}
 								else {
 									player.sendMessage(ChatColor.RED + "You do not have sufficient amount of $WRLD. Current balance: " + fromWallet.getPolygonWRLDBalance());
