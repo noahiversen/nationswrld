@@ -49,62 +49,71 @@ public class ClaimCommand implements CommandExecutor {
 				new BukkitRunnable() {
 					@Override
 					public void run() {
-						if(NationsWRLD.getInstance().isHotWalletGood()) {
-							GlobalUser user = NationsWRLD.getInstance().getDatabaseHandler().getUser(player.getUniqueId());
-							if(user.canClaim() && !playersClaimed.contains(player.getName())) {
-								if(NationsWRLD.getWalletAPI().getNFTPlayer(player).isLinked()) {
-									if(user.getWRLDOwed() >= 5) {
-										try {
-											playersClaimed.add(player.getName());
-											NFTWorlds.getInstance().getWrld().getPolygonBalanceAsync("0xa9e851b5ecafb00098ed2602a450a60c67c5b45a").thenAcceptAsync(balance -> {
-												if(balance.compareTo(BigDecimal.valueOf(user.getWRLDOwed()).toBigInteger()) > 0) {
-													user.setCanClaim(false);
-													playersClaimed.remove(player.getName());
-													user.setTimeStamp(System.currentTimeMillis());
-													user.setAddress(NationsWRLD.getWalletAPI().getPrimaryWallet(player).getAddress());
-													NationsWRLD.getInstance().getDatabaseHandler().saveUser(user);
-										            JSONObject json = new JSONObject();
-										            json.put("network", "Polygon");
-										            json.put("token", "POLYGON_WRLD");
-										            json.put("recipient_address", NationsWRLD.getWalletAPI().getNFTPlayer(player).getPrimaryWallet().getAddress());
-										            json.put("amount", Convert.toWei(BigDecimal.valueOf(user.getWRLDOwed()), Convert.Unit.ETHER).toBigInteger());
-										            String requestBody = json.toString();
-										            HttpRequest request = HttpRequest.newBuilder()
-										                    .uri(URI.create(NFTWorlds.getInstance().getNftConfig().getHotwalletHttpsEndpoint() + "/send_tokens"))
-										                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-										                    .build();
-										            try {
-										                JSONObject response = new JSONObject(HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString()).body());
-										                NFTWorlds.getInstance().getLogger().info(response.toString());
-										                new BukkitRunnable() {
-										                	@Override
-										                	public void run() {
-										                		player.sendMessage(ChatColor.GOLD + "Your claim of " + ChatColor.WHITE + user.getWRLDOwed() + " $WRLD" + ChatColor.GOLD + " has been queued. Please wait...");
-										                	}
-										                }.runTask(NationsWRLD.getInstance());
-										            } catch (IOException | InterruptedException e) {
-										                e.printStackTrace();
-										            }
-													NationsWRLD.getInstance().getLogger().info(player.getName() + " queued " + user.getWRLDOwed() + " WRLD from claiming");
+						if(NationsWRLD.getInstance().getDatabaseHandler().lockUser(player.getUniqueId()) > 0) {
+							if(!playersClaimed.contains(player.getName())) {
+								playersClaimed.add(player.getName());
+								if(NationsWRLD.getInstance().isHotWalletGood()) {
+									GlobalUser user = NationsWRLD.getInstance().getDatabaseHandler().getUser(player.getUniqueId());
+									//if(user.canClaim()) {
+										if(NationsWRLD.getWalletAPI().getNFTPlayer(player).isLinked()) {
+											if(user.getWRLDOwed() >= 5) {
+												try {
+													NFTWorlds.getInstance().getWrld().getPolygonBalanceAsync("0xa9e851b5ecafb00098ed2602a450a60c67c5b45a").thenAcceptAsync(balance -> {
+														if(balance.compareTo(BigDecimal.valueOf(user.getWRLDOwed()).toBigInteger()) > 0) {
+															playersClaimed.remove(player.getName());
+															user.setTimeStamp(System.currentTimeMillis());
+															user.setAddress(NationsWRLD.getWalletAPI().getPrimaryWallet(player).getAddress());
+															NationsWRLD.getInstance().getDatabaseHandler().saveUser(user);
+												            JSONObject json = new JSONObject();
+												            json.put("network", "Polygon");
+												            json.put("token", "POLYGON_WRLD");
+												            json.put("recipient_address", NationsWRLD.getWalletAPI().getNFTPlayer(player).getPrimaryWallet().getAddress());
+												            json.put("amount", Convert.toWei(BigDecimal.valueOf(user.getWRLDOwed()), Convert.Unit.ETHER).toBigInteger());
+												            String requestBody = json.toString();
+												            HttpRequest request = HttpRequest.newBuilder()
+												                    .uri(URI.create(NFTWorlds.getInstance().getNftConfig().getHotwalletHttpsEndpoint() + "/send_tokens"))
+												                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+												                    .build();
+												            try {
+												                JSONObject response = new JSONObject(HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString()).body());
+												                NFTWorlds.getInstance().getLogger().info(response.toString());
+												                new BukkitRunnable() {
+												                	@Override
+												                	public void run() {
+												                		player.sendMessage(ChatColor.GOLD + "Your claim of " + ChatColor.WHITE + user.getWRLDOwed() + " $WRLD" + ChatColor.GOLD + " has been queued. Please wait...");
+												                	}
+												                }.runTask(NationsWRLD.getInstance());
+												            } catch (IOException | InterruptedException e) {
+												                e.printStackTrace();
+												            }
+															NationsWRLD.getInstance().getLogger().info(player.getName() + " queued " + user.getWRLDOwed() + " WRLD from claiming");
+														}
+														else {
+															playersClaimed.remove(player.getName());
+															sendSyncMessage(player, ChatColor.RED + "Unable to send transaction. Please try again later.");
+															user.setCanClaim(true);
+															NationsWRLD.getInstance().getDatabaseHandler().saveUser(user);
+														}
+													});
+												} catch (Exception e) {
+													// TODO Auto-generated catch block
+													e.printStackTrace();
 												}
-												else {
-													playersClaimed.remove(player.getName());
-													sendSyncMessage(player, ChatColor.RED + "Unable to send transaction. Please try again later.");
-													user.setCanClaim(true);
-													NationsWRLD.getInstance().getDatabaseHandler().saveUser(user);
-												}
-											});
-										} catch (Exception e) {
-											// TODO Auto-generated catch block
-											e.printStackTrace();
+											}
+											else {
+												sendSyncMessage(player, ChatColor.RED + "Your balance must be 5+ WRLD to claim.");
+											}
 										}
-									}
-									else {
-										sendSyncMessage(player, ChatColor.RED + "Your balance must be 5+ WRLD to claim.");
-									}
+										else {
+											sendSyncMessage(player, ChatColor.RED + "Your wallet must be linked.");
+										}
+									//}
+									//else {
+									//	sendSyncMessage(player, ChatColor.RED + "Your current claim is already in progress.");
+									//}
 								}
 								else {
-									sendSyncMessage(player, ChatColor.RED + "Your wallet must be linked.");
+									sendSyncMessage(player, ChatColor.RED + "Hot wallet is unavailable. Please try claiming later.");
 								}
 							}
 							else {
@@ -112,7 +121,7 @@ public class ClaimCommand implements CommandExecutor {
 							}
 						}
 						else {
-							sendSyncMessage(player, ChatColor.RED + "Hot wallet is unavailable. Please try claiming later.");
+							sendSyncMessage(player, ChatColor.RED + "Your current claim is already in progress.");
 						}
 					}
 				}.runTaskAsynchronously(NationsWRLD.getInstance());

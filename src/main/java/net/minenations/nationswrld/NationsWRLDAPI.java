@@ -1,14 +1,20 @@
 package net.minenations.nationswrld;
 
-
+import java.math.BigInteger;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.web3j.crypto.Credentials;
+import org.web3j.tx.gas.DefaultGasProvider;
 
 import com.mongodb.MongoClient;
+import com.nftworlds.wallet.NFTWorlds;
+import com.nftworlds.wallet.contracts.wrappers.common.ERC721;
 
 import net.md_5.bungee.api.ChatColor;
 import net.minenations.nationswrld.database.GlobalUser;
@@ -51,6 +57,25 @@ public class NationsWRLDAPI {
 			}
 		}.runTaskAsynchronously(NationsWRLD.getInstance());
 	}
+	
+	
+	public static CompletableFuture<Boolean> doesOwnNFT(Player player, String contractAddress) {
+		 return CompletableFuture.supplyAsync(() -> {
+			try {
+				return ERC721.load(
+				         contractAddress,
+				         NFTWorlds.getInstance().getEthereumRPC().getEthereumWeb3j(),
+				         Credentials.create(NFTWorlds.getInstance().getNftConfig().getServerPrivateKey()),
+				         new DefaultGasProvider()).balanceOf(NationsWRLD.getWalletAPI().getNFTPlayer(player).getPrimaryWallet().getAddress()).sendAsync().get().compareTo(BigInteger.ZERO) > 0;
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				return false;
+			} catch (ExecutionException e) {
+				// TODO Auto-generated catch block
+				return false;
+			}
+		});
+    }
 	
 	/*
 	public static void rentOutNFT(UUID from, UUID to) {

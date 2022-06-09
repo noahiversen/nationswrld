@@ -8,6 +8,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.mongodb.morphia.Datastore;
 import org.mongodb.morphia.Morphia;
 import org.mongodb.morphia.mapping.DefaultCreator;
+import org.mongodb.morphia.query.UpdateResults;
 
 import com.mongodb.MongoClient;
 import com.mongodb.MongoCredential;
@@ -55,6 +56,7 @@ public class DatabaseHandler {
     
     public GlobalUser getUser(UUID uuid) {
     	GlobalUser du = userDAO.findOne("uuid", uuid.toString());
+    	
     	if(du == null) {
     		du = new GlobalUser();
     		du.setRentedNFTs(new ArrayList<String>());
@@ -69,6 +71,15 @@ public class DatabaseHandler {
     		userDAO.save(du);
     	}
     	return du;
+    }
+    
+    public void unlockUser(UUID uuid) {
+    	userDAO.update(userDAO.createQuery().filter("uuid", uuid.toString()), userDAO.createUpdateOperations().set("can_claim", true));
+    }
+    
+    public int lockUser(UUID uuid) {
+    	UpdateResults results = userDAO.update(userDAO.createQuery().filter("uuid", uuid.toString()).filter("can_claim", true), userDAO.createUpdateOperations().set("can_claim", false));
+    	return results.getUpdatedCount();
     }
     
     public HotWallet getHotWallet() {
